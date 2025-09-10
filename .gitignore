@@ -1,0 +1,18 @@
+# Ignore virtual environments
+venv/
+.env
+
+# Ignore Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Ignore dataset downloads
+*.jsonl
+*.parquet
+*.pkl
+*.h5
+*.zip
+
+# Ignore system files
+.DS_Store
