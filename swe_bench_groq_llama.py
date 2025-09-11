@@ -3,6 +3,7 @@ import json
 from groq import Groq
 import os
 import random
+from datetime import datetime
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -42,17 +43,9 @@ def analyze_instance(max_fail=1, max_patch_len=200, max_problem_len=500):
     print(f"Problem Statement:\n{instance.get('problem_statement', 'N/A')}")
     print(f"Expected Patch:\n{instance.get('patch', 'N/A')}")
     
-    if 'test_patch' in instance:
-        print(f"Test Patch:\n{instance['test_patch']}")
-    
-    # Print other metadata
-    for key, value in instance.items():
-        if key not in ['problem_statement', 'patch', 'test_patch']:
-            print(f"{key}: {value}")
-    
     return instance
 
-def test_groq_on_instance(instance, api_key=None):
+def test_groq_on_instance(instance, api_key=None, save_individual=False):
     """Test Groq on the PROVIDED instance"""
     
     if not api_key:
@@ -105,16 +98,12 @@ Provide your solution as a unified diff patch or clear code changes."""
         
         print(f"GROQ GENERATED SOLUTION:")
         print("-" * 50)
-        print(generated_patch)
-        
-        print(f"\nEXPECTED SOLUTION:")
-        print("-" * 50)
-        print(instance['patch'])
+        print(generated_patch[:300] + "..." if len(generated_patch) > 300 else generated_patch)
         
         print(f"\nAPI USAGE:")
         print(f"Tokens used: {tokens_used}")
         
-        # Save results
+        # Create result object
         result = {
             "instance_id": instance['instance_id'],
             "repository": instance['repo'],
@@ -123,15 +112,15 @@ Provide your solution as a unified diff patch or clear code changes."""
             "groq_generated_patch": generated_patch,
             "tokens_used": tokens_used,
             "model": "llama-3.3-70b-versatile",
-            "analysis_timestamp": str(os.times())
+            "evaluation_timestamp": datetime.now().isoformat()
         }
         
-        # Save with instance ID in filename for uniqueness
-        filename = f"swebench_result_{instance['instance_id'].replace('/', '_')}.json"
-        with open(filename, "w") as f:
-            json.dump(result, f, indent=2)
-
-        print(f"\nResult saved to: {filename}")
+        # Only save individual file if requested
+        if save_individual:
+            filename = f"swebench_result_{instance['instance_id'].replace('/', '_')}.json"
+            with open(filename, "w") as f:
+                json.dump(result, f, indent=2)
+            print(f"\nIndividual result saved to: {filename}")
 
         return result
         
@@ -165,87 +154,125 @@ def compare_patches(expected, generated):
     print(f"Line-level similarity: {similarity:.1f}%")
     
     if similarity > 80:
-        print("High similarity - likely successful fix")
-        return "SUCCESS"
+        print(" High similarity - likely successful fix")
+        return "SUCCESS", similarity
     elif similarity > 50:
-        print("Medium similarity - partial fix")
-        return "PARTIAL"
+        print(" Medium similarity - partial fix")
+        return "PARTIAL", similarity
     else:
-        print("Low similarity - likely failed fix")
-        return "FAILED"
+        print(" Low similarity - likely failed fix")
+        return "FAILED", similarity
 
-def run_multiple_tests(num_tests=5):
-    """Run multiple tests to get both success and failure cases"""
+def run_comprehensive_evaluation(num_tests=10):
+    """Run comprehensive evaluation and create consolidated JSON output"""
     
     print("="*80)
-    print(f"RUNNING {num_tests} TESTS TO FIND SUCCESS/FAILURE CASES")
+    print(f"RUNNING COMPREHENSIVE SWE-BENCH EVALUATION")
+    print(f"Number of instances: {num_tests}")
     print("="*80)
     
     results = []
     success_cases = []
     failed_cases = []
+    partial_cases = []
+    total_tokens = 0
     
     for i in range(num_tests):
-        print(f"\n--- TEST {i+1}/{num_tests} ---")
+        print(f"\n--- EVALUATION {i+1}/{num_tests} ---")
         
         # Get a random instance
         instance = analyze_instance()
         
         if os.getenv("GROQ_API_KEY"):
-            # Test with Groq
-            result = test_groq_on_instance(instance)
+            # Test with Groq (don't save individual files)
+            result = test_groq_on_instance(instance, save_individual=False)
             
             if result:
                 # Compare patches
-                comparison = compare_patches(result['expected_patch'], result['groq_generated_patch'])
-                result['comparison_result'] = comparison
-                results.append(result)
+                comparison_result, similarity_score = compare_patches(
+                    result['expected_patch'], 
+                    result['groq_generated_patch']
+                )
                 
-                if comparison == "SUCCESS":
+                # Add comparison results to the result
+                result['comparison_result'] = comparison_result
+                result['similarity_score'] = similarity_score
+                
+                results.append(result)
+                total_tokens += result['tokens_used'] if isinstance(result['tokens_used'], int) else 0
+                
+                # Categorize results
+                if comparison_result == "SUCCESS":
                     success_cases.append(result)
-                    print(f"SUCCESS CASE FOUND: {result['instance_id']}")
-                elif comparison == "FAILED":
+                    print(f" SUCCESS: {result['instance_id']}")
+                elif comparison_result == "PARTIAL":
+                    partial_cases.append(result)
+                    print(f" PARTIAL: {result['instance_id']}")
+                else:
                     failed_cases.append(result)
-                    print(f"FAILED CASE FOUND: {result['instance_id']}")
+                    print(f" FAILED: {result['instance_id']}")
         else:
-            print("GROQ_API_KEY not found - skipping API test")
+            print(" GROQ_API_KEY not found - skipping API test")
+            break
     
-    # Save summary
-    summary = {
-        "total_tests": len(results),
-        "success_cases": len(success_cases),
-        "failed_cases": len(failed_cases),
-        "success_examples": success_cases[:2],  # First 2 successes
-        "failed_examples": failed_cases[:2]     # First 2 failures
+    # Create comprehensive summary
+    evaluation_summary = {
+        "metadata": {
+            "model_name": "llama-3.3-70b-versatile",
+            "provider": "groq",
+            "evaluation_date": datetime.now().isoformat(),
+            "dataset": "princeton-nlp/SWE-bench_Lite",
+            "total_instances_tested": len(results),
+            "evaluation_parameters": {
+                "max_tokens": 2000,
+                "temperature": 0.1,
+                "max_patch_length_filter": 200,
+                "max_problem_length_filter": 500
+            }
+        },
+        "performance_summary": {
+            "total_tests": len(results),
+            "successful_fixes": len(success_cases),
+            "partial_fixes": len(partial_cases),
+            "failed_fixes": len(failed_cases),
+            "success_rate": len(success_cases) / len(results) if results else 0,
+            "partial_rate": len(partial_cases) / len(results) if results else 0,
+            "failure_rate": len(failed_cases) / len(results) if results else 0,
+            "total_tokens_used": total_tokens,
+            "average_tokens_per_instance": total_tokens / len(results) if results else 0,
+            "average_similarity_score": sum(r['similarity_score'] for r in results) / len(results) if results else 0
+        },
+        "detailed_results": results,
+        "example_cases": {
+            "successful_examples": success_cases[:2],  # Best 2 successes
+            "failed_examples": failed_cases[:2],       # First 2 failures
+            "partial_examples": partial_cases[:1]      # 1 partial case
+        }
     }
     
-    with open("swe_bench_groq_llama_results.json", "w") as f:
-        json.dump(summary, f, indent=2)
+    # Save consolidated results
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M")
+    filename = f"swe_bench_groq_llama_evaluation_{timestamp}.json"
+    
+    with open(filename, "w") as f:
+        json.dump(evaluation_summary, f, indent=2)
     
     print(f"\n" + "="*80)
-    print("FINAL SUMMARY")
+    print("FINAL EVALUATION SUMMARY")
     print("="*80)
-    print(f"Total tests run: {len(results)}")
-    print(f"Success cases: {len(success_cases)}")
-    print(f"Failed cases: {len(failed_cases)}")
-    print(f"Summary saved to: swe_bench_groq_llama_results.json")
-
-    return summary
+    print(f"Total instances tested: {len(results)}")
+    print(f" Successful fixes: {len(success_cases)} ({len(success_cases)/len(results)*100:.1f}%)" if results else "No results")
+    print(f" Partial fixes: {len(partial_cases)} ({len(partial_cases)/len(results)*100:.1f}%)" if results else "")
+    print(f" Failed fixes: {len(failed_cases)} ({len(failed_cases)/len(results)*100:.1f}%)" if results else "")
+    print(f" Total tokens used: {total_tokens:,}")
+    print(f" Results saved to: {filename}")
+    
+    return evaluation_summary
 
 if __name__ == "__main__":
-    # FIXED: Now properly passes the selected instance to the test function
-    
-    # Step 1: Analyze a random instance
-    selected_instance = analyze_instance()
-    
-    # Step 2: Test Groq on the SAME instance
+    # Run comprehensive evaluation (creates only 1 JSON file)
     if os.getenv("GROQ_API_KEY"):
-        result = test_groq_on_instance(selected_instance)  # Pass the selected instance!
-        if result:
-            comparison = compare_patches(result['expected_patch'], result['groq_generated_patch'])
-            print(f"\nFinal Result: {comparison}")
+        evaluation_results = run_comprehensive_evaluation(num_tests=5)
     else:
-        print("\n Set GROQ_API_KEY to run the API test")
-    
-    # Uncomment to run multiple tests:
-    run_multiple_tests(5)
+        print("  Set GROQ_API_KEY environment variable to run evaluation")
+        print("  Example: export GROQ_API_KEY='your_api_key_here'")
