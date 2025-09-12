@@ -273,8 +273,8 @@ def evaluate_and_validate_patch(instance, generated_patch, api_key=None):
     print("="*80)
     print("PATCH FORMAT VALIDATION")
     print("="*80)
-    print(f"Proper Format: {'✓' if validation['has_proper_format'] else '✗'}")
-    print(f"Targets Correct Files: {'✓' if validation['targets_correct_files'] else '✗'}")
+    print(f"Proper Format: {' Yes' if validation['has_proper_format'] else ' No'}")
+    print(f"Targets Correct Files: {' Yes' if validation['targets_correct_files'] else ' No'}")
     print(f"Expected Files: {expected_files}")
     print(f"Generated Files: {validation['generated_files']}")
     if validation['issues']:
@@ -422,13 +422,13 @@ def run_comprehensive_evaluation(num_tests=5):
                 # Categorize results
                 if comparison_result == "SUCCESS":
                     success_cases.append(result)
-                    print(f"✓ SUCCESS: {result['instance_id']}")
+                    print(f"SUCCESS: {result['instance_id']}")
                 elif comparison_result == "PARTIAL":
                     partial_cases.append(result)
-                    print(f"⚠ PARTIAL: {result['instance_id']}")
+                    print(f"PARTIAL: {result['instance_id']}")
                 else:
                     failed_cases.append(result)
-                    print(f"✗ FAILED: {result['instance_id']}")
+                    print(f"FAILED: {result['instance_id']}")
         else:
             print(" SONNET_API_KEY not found - skipping API test")
             break
