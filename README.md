@@ -111,5 +111,3 @@ python sonnet_swe_bench_test.py
 
 ---
 
-
-For more details, see [SWE-bench/README.md](SWE-bench/README.md).
