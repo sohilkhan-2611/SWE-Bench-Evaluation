@@ -111,3 +111,34 @@ python sonnet_swe_bench_test.py
 
 ---
 
+What is SWE-Bench CLI?
+SWE-Bench CLI is a command-line tool for interacting with the SWE-bench API that allows you to submit predictions, manage runs, and retrieve evaluation reports GitHubSWE-bench. It's designed to evaluate AI systems on real GitHub issues from popular Python repositories.
+
+Installation
+pip install sb-cli
+Authentication
+Before using the CLI, you'll need to get an API key:
+
+Generate an API key:
+sb-cli gen-api-key your.email@example.com
+Set your API key as an environment variable - and store it somewhere safe!
+export SWEBENCH_API_KEY=your_api_key
+# or add export SWEBENCH_API_KEY=your_api_key to your .*rc file
+You'll receive an email with a verification code. Verify your API key:
+sb-cli verify-api-key YOUR_VERIFICATION_CODE
+
+Usage
+Submit Predictions
+Submit your model's predictions to SWE-bench:
+
+sb-cli submit swe-bench-m test \
+    --predictions_path predictions.json \
+    --run_id my_run_id
+
+
+for further details read this file https://github.com/SWE-bench/sb-cli/blob/main/README.md#installation
+
+I adapted the pipeline to use the standard SWE-Bench evaluation framework (sb-cli), which:
+	•	Applies patches in the official benchmark setup (repo checkout, test execution).
+	•	Produces standardised pass/fail outcomes comparable to published results.
+	•	Ensures methodological rigor beyond my current LLM-based evaluation.

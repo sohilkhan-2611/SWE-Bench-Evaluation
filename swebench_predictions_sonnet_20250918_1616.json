@@ -1,0 +1,10 @@
+{
+  "django__django-15347": {
+    "model_patch": "--- a/django/contrib/messages/storage/cookie.py\n+++ b/django/contrib/messages/storage/cookie.py\n@@ -35,7 +35,7 @@ class MessageEncoder(json.JSONEncoder):\n             return {\n                 '__json_message': True,\n                 'level': obj.level,\n-                'message': obj.message,\n-                'extra_tags': obj.extra_tags\n+                'message': obj.message, \n+                'extra_tags': obj.extra_tags if obj.extra_tags is not None else ''\n             }\n         return super().default(obj)",
+    "model_name_or_path": "sonnet"
+  },
+  "django__django-12125": {
+    "model_patch": "--- a/django/db/migrations/serializer.py\n+++ b/django/db/migrations/serializer.py\n@@ -143,7 +143,10 @@ class BaseSerializer:\n         # If it's a class that should be stored as a string\n         if isinstance(value, type):\n             if value.__module__ == \"builtins\":\n                 return value.__name__\n+            # Handle nested classes\n+            if '.' in value.__qualname__:\n+                return \"%s.%s\" % (value.__module__, value.__qualname__)\n+            # Handle top-level classes\n             return \"%s.%s\" % (value.__module__, value.__name__)\n         # Return the regular repr\n         return repr(value)",
+    "model_name_or_path": "sonnet"
+  }
+}
