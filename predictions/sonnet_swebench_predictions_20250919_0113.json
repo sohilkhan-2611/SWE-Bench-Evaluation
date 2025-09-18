@@ -1,0 +1,22 @@
+{
+  "django__django-14667": {
+    "model_patch": "--- a/django/db/models/sql/query.py\n+++ b/django/db/models/sql/query.py\n@@ -1445,7 +1445,7 @@ class Query:\n         if fields:\n             field_names = {f.name for f in fields}\n             # Clear any existing field restrictions if they are not\n-            # present in `fields`.\n+            # present in `fields`, unless they are deferred fields.\n             existing_fields = set(self.deferred_loading[0])\n             if (self.deferred_loading[1] and field_names != existing_fields) or not self.deferred_loading[1]:\n                 self.clear_deferred_loading()\n@@ -1466,7 +1466,7 @@ class Query:\n         if fields:\n             for field in fields:\n                 self.add_deferred_loading(field.name)\n-        self.deferred_loading = self.deferred_loading[0], False\n+            self.deferred_loading = self.deferred_loading[0], False\n         if clear_only:\n             self._fields = ()\n         return self",
+    "model_name_or_path": "sonnet"
+  },
+  "django__django-11001": {
+    "model_patch": "--- a/django/db/models/sql/compiler.py\n+++ b/django/db/models/sql/compiler.py\n@@ -1122,7 +1122,7 @@ class SQLCompiler:\n             # Collate the ordering part queries and remove the ordering\n             key_order = []\n             for expr in ordering_group:\n-                sql = expr.as_sql(qn, connection)[0]\n+                sql = ' '.join(expr.as_sql(qn, connection)[0].split())\n                 without_ordering = self.ordering_parts.search(sql).group(1)\n                 if without_ordering not in seen:\n                     seen.add(without_ordering)",
+    "model_name_or_path": "sonnet"
+  },
+  "sphinx-doc__sphinx-8627": {
+    "model_patch": "--- a/sphinx/util/typing.py\n+++ b/sphinx/util/typing.py\n@@ -6,6 +6,7 @@ import sys\n import typing\n from typing import Any, Dict, List, Tuple, Union\n import warnings\n+import struct\n \n from sphinx.util.inspect import safe_getattr\n \n@@ -159,6 +160,8 @@ def restify(cls: Any, mode: str = 'fully-qualified-except-typing') -> str:\n         return 'typing.Any'\n     elif cls is type(None):  # NoQA: E721\n         return 'None'\n+    elif cls is struct.Struct:\n+        return 'struct.Struct'\n     elif isinstance(cls, typing._GenericAlias):\n         name = _restify_typing_alias(cls, mode)\n         if name:",
+    "model_name_or_path": "sonnet"
+  },
+  "sympy__sympy-21171": {
+    "model_patch": "--- a/sympy/printing/latex.py\n+++ b/sympy/printing/latex.py\n@@ -648,7 +648,10 @@ class LatexPrinter(Printer):\n             tex = r\"\\frac{%s}{%s}\" % (self._print(expr.base), self._print(-expr.exp))\n         else:\n             if expr.base.is_Function:\n-                return self._print(expr.base, exp=self._print(expr.exp))\n+                if isinstance(expr.base, SingularityFunction):\n+                    return self._print(expr.base) + \"^{%s}\" % self._print(expr.exp)\n+                else:\n+                    return self._print(expr.base, exp=self._print(expr.exp))\n             else:\n                 tex = r\"%s^{%s}\"",
+    "model_name_or_path": "sonnet"
+  },
+  "scikit-learn__scikit-learn-10508": {
+    "model_patch": "--- a/sklearn/preprocessing/label.py\n+++ b/sklearn/preprocessing/label.py\n@@ -131,6 +131,8 @@ class LabelEncoder(BaseEstimator, TransformerMixin):\n             y : array-like of shape (n_samples,)\n                 Target values.\n         \"\"\"\n+        if len(y) == 0:\n+            return np.array([], dtype=np.int64)\n         return np.searchsorted(self.classes_, y)\n \n     def inverse_transform(self, y):",
+    "model_name_or_path": "sonnet"
+  }
+}

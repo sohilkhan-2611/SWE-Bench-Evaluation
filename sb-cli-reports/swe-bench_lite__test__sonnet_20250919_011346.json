@@ -1,15 +1,18 @@
 {
     "total_instances": 300,
-    "submitted_instances": 2,
-    "completed_instances": 2,
+    "submitted_instances": 5,
+    "completed_instances": 5,
     "pending_instances": 0,
     "failed_instances": 0,
     "resolved_instances": 0,
-    "unresolved_instances": 2,
+    "unresolved_instances": 5,
     "error_instances": 0,
     "completed_ids": [
-        "django__django-12125",
-        "django__django-15347"
+        "django__django-11001",
+        "django__django-14667",
+        "scikit-learn__scikit-learn-10508",
+        "sphinx-doc__sphinx-8627",
+        "sympy__sympy-21171"
     ],
     "incomplete_ids": [
         "astropy__astropy-12907",
@@ -20,7 +23,6 @@
         "astropy__astropy-7746",
         "django__django-10914",
         "django__django-10924",
-        "django__django-11001",
         "django__django-11019",
         "django__django-11039",
         "django__django-11049",
@@ -42,6 +44,7 @@
         "django__django-11964",
         "django__django-11999",
         "django__django-12113",
+        "django__django-12125",
         "django__django-12184",
         "django__django-12284",
         "django__django-12286",
@@ -87,7 +90,6 @@
         "django__django-14534",
         "django__django-14580",
         "django__django-14608",
-        "django__django-14667",
         "django__django-14672",
         "django__django-14730",
         "django__django-14752",
@@ -101,6 +103,7 @@
         "django__django-15213",
         "django__django-15252",
         "django__django-15320",
+        "django__django-15347",
         "django__django-15388",
         "django__django-15400",
         "django__django-15498",
@@ -195,7 +198,6 @@
         "pytest-dev__pytest-8906",
         "pytest-dev__pytest-9359",
         "scikit-learn__scikit-learn-10297",
-        "scikit-learn__scikit-learn-10508",
         "scikit-learn__scikit-learn-10949",
         "scikit-learn__scikit-learn-11040",
         "scikit-learn__scikit-learn-11281",
@@ -229,7 +231,6 @@
         "sphinx-doc__sphinx-8474",
         "sphinx-doc__sphinx-8506",
         "sphinx-doc__sphinx-8595",
-        "sphinx-doc__sphinx-8627",
         "sphinx-doc__sphinx-8713",
         "sphinx-doc__sphinx-8721",
         "sphinx-doc__sphinx-8801",
@@ -293,7 +294,6 @@
         "sympy__sympy-20590",
         "sympy__sympy-20639",
         "sympy__sympy-21055",
-        "sympy__sympy-21171",
         "sympy__sympy-21379",
         "sympy__sympy-21612",
         "sympy__sympy-21614",
@@ -312,15 +312,21 @@
         "sympy__sympy-24909"
     ],
     "submitted_ids": [
-        "django__django-12125",
-        "django__django-15347"
+        "django__django-11001",
+        "django__django-14667",
+        "scikit-learn__scikit-learn-10508",
+        "sphinx-doc__sphinx-8627",
+        "sympy__sympy-21171"
     ],
     "error_ids": [],
     "schema_version": 2,
     "resolved_ids": [],
     "unresolved_ids": [
-        "django__django-12125",
-        "django__django-15347"
+        "django__django-11001",
+        "django__django-14667",
+        "scikit-learn__scikit-learn-10508",
+        "sphinx-doc__sphinx-8627",
+        "sympy__sympy-21171"
     ],
     "pending_ids": [],
     "failed_ids": []

@@ -3,6 +3,7 @@ import json
 import requests
 import os
 import random
+import subprocess
 from datetime import datetime
 from dotenv import load_dotenv
 load_dotenv()
@@ -263,12 +264,15 @@ def run_comprehensive_evaluation(num_tests=5):
         },
         "detailed_results": results
     }
+
+    patch_dir = "patches"
+    os.makedirs(patch_dir, exist_ok=True)
     
     # Save consolidated results
     timestamp = datetime.now().strftime("%Y%m%d_%H%M")
-    filename = f"swe_bench_patches_{timestamp}.json"
-    
-    with open(filename, "w") as f:
+    filename = f"sonnet_swe_bench_patches_{timestamp}.json"
+
+    with open(os.path.join(patch_dir, filename), "w") as f:
         json.dump(evaluation_summary, f, indent=2)
     
     print(f"\n" + "="*80)
@@ -298,12 +302,14 @@ def generate_swebench_predictions(results, model_name="sonnet"):
 
 
 def save_predictions_for_swebench(evaluation_results, model_name="sonnet", output_file=None):
-    """Save predictions in SWE-Bench CLI format"""
-    from datetime import datetime
+    """Save predictions in SWE-Bench CLI format under ./predictions folder"""
     
+    pred_dir = "predictions"
+    os.makedirs(pred_dir, exist_ok=True)
+
     if output_file is None:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M")
-        output_file = f"swebench_predictions_{model_name}_{timestamp}.json"
+        output_file = f"{model_name}_swebench_predictions_{timestamp}.json"
     
     # Extract results from your evaluation summary
     if 'detailed_results' in evaluation_results:
@@ -313,18 +319,22 @@ def save_predictions_for_swebench(evaluation_results, model_name="sonnet", outpu
     
     predictions = generate_swebench_predictions(results, model_name)
     
+
+    # Build full path
+    full_path = os.path.join(pred_dir, output_file)
+
+
     # Save in SWE-Bench format
-    with open(output_file, 'w') as f:
+    with open(full_path, 'w') as f:
         json.dump(predictions, f, indent=2)
-    
-    print(f"SWE-Bench predictions saved to: {output_file}")
-    return output_file, predictions
+
+    print(f"SWE-Bench predictions saved to: {full_path}")
+    return os.path.abspath(full_path), predictions
 
 
 def run_swebench_cli_evaluation(predictions_file, model_name="sonnet"):
     """Run SWE-Bench CLI evaluation on your predictions"""
-    import subprocess
-    import os
+    
     
     # Check if sb-cli is installed
     try:
@@ -342,16 +352,19 @@ def run_swebench_cli_evaluation(predictions_file, model_name="sonnet"):
         return None
     
     # Generate unique run ID
-    from datetime import datetime
     run_id = f"{model_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-    
+
+    # Get absolute path for predictions file
+    predictions_file = os.path.abspath(predictions_file)
+
     # Submit to SWE-Bench CLI
     cmd = [
-        "sb-cli", "submit", "swe-bench_lite", "dev",
+        "sb-cli", "submit", "swe-bench_lite", "test",
         "--predictions_path", predictions_file,
         "--run_id", run_id,
         "--gen_report", "1"
     ]
+    
     
     print(f"Running SWE-Bench CLI evaluation...")
     print(f"Command: {' '.join(cmd)}")
@@ -372,6 +385,7 @@ def run_swebench_cli_evaluation(predictions_file, model_name="sonnet"):
         print(f"❌ SWE-Bench CLI submission failed:")
         print(f"Error: {e.stderr}")
         return None
+
 
 
 def main():

@@ -1,50 +1,53 @@
+# SWE-Bench Evaluation
 
-# SWE-Bench-Evaluation
+A comprehensive evaluation framework for testing Large Language Models (LLMs) on real-world software bug fixing using the SWE-bench benchmark. This project integrates with Groq and OpenRouter APIs to automatically generate code patches and evaluate them against ground-truth fixes using the official SWE-Bench CLI.
 
-## 📝 Purpose
+## 📋 Table of Contents
 
-This codebase evaluates the capabilities of large language models (LLMs) to automatically generate correct code patches for real-world software bugs using the SWE-bench benchmark. It integrates with APIs from Groq and OpenRouter (Anthropic Sonnet) to prompt models, validate outputs, and compare their predictions against ground-truth fixes.
+- [About](#about)
+- [Features](#features)
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Usage](#usage)
+- [Project Structure](#project-structure)
+- [Supported Models](#supported-models)
+- [Workflow](#workflow)
+- [SWE-Bench CLI Integration](#swe-bench-cli-integration)
+- [Examples](#examples)
+- [Contributing](#contributing)
 
-Evaluation and submission are conducted using the official SWE-Bench CLI (sb-cli), which ensures:
-	•	Patches are applied in the original benchmark setup (repository checkout and test execution).
-	•	Results follow the standard SWE-Bench evaluation protocol, making them directly comparable to        published baselines.
-	•	Automatic report generation for reproducible and rigorous benchmarking.
+## 📝 About
 
-Users can generate predictions in the required format and then submit them to SWE-Bench via sb-cli submit, followed by sb-cli get-report to retrieve evaluation results.
+This codebase evaluates the capabilities of large language models to automatically generate correct code patches for real-world software bugs using the SWE-bench benchmark. The evaluation process integrates with the official SWE-Bench CLI (sb-cli) to ensure:
 
----
+- ✅ Patches are applied in the original benchmark setup (repository checkout and test execution)
+- ✅ Results follow the standard SWE-Bench evaluation protocol
+- ✅ Direct comparability to published baselines
+- ✅ Automatic report generation for reproducible benchmarking
 
-## 📘 About SWE-bench Lite
+### About SWE-bench Lite
 
-SWE-bench Lite is a dataset of real software bugs curated from open-source repositories. Each bug ("task") includes:
-- **Problem statement:** Description of the bug.
-- **Code context:** Relevant files.
-- **Patch:** The actual fix.
-- **Test patch:** Additional tests for regression prevention.
+SWE-bench Lite is a curated dataset of real software bugs from open-source repositories. Each task includes:
 
+- **Problem statement:** Description of the bug
+- **Code context:** Relevant files and code snippets
+- **Ground truth patch:** The actual fix that resolved the issue
+- **Test patch:** Additional tests for regression prevention
 
----
+## 🚀 Features
 
-## aBOUT swe cli
-What is SWE-Bench CLI?
-SWE-Bench CLI is a command-line tool for interacting with the SWE-bench API that allows you to submit predictions, manage runs, and retrieve evaluation reports GitHubSWE-bench. It's designed to evaluate AI systems on real GitHub issues from popular Python repositories.
+- **Multi-Model Support:** Evaluate different LLMs (Groq Llama, Claude Sonnet)
+- **Official Integration:** Uses SWE-Bench CLI for standardized evaluation
+- **Automated Pipeline:** End-to-end patch generation and evaluation
+- **Structured Output:** JSON results with detailed metadata
+- **Reproducible:** Consistent evaluation methodology
 
-Installation
-pip install sb-cli
-Authentication
-Before using the CLI, you'll need to get an API key:
+## 📦 Installation
 
-Generate an API key:
-sb-cli gen-api-key your.email@example.com
-Set your API key as an environment variable - and store it somewhere safe!
-export SWEBENCH_API_KEY=your_api_key
+### Prerequisites
 
-# or add export SWEBENCH_API_KEY=your_api_key to your .*rc file
-You'll receive an email with a verification code. Verify your API key:
-sb-cli verify-api-key YOUR_VERIFICATION_CODE
-
-
-## 🚀 Installation
+- Python 3.8+
+- Git
 
 ### Clone the Repository
 
@@ -53,163 +56,224 @@ git clone https://github.com/sohilkhan-2611/SWE-Bench-Evaluation.git
 cd SWE-Bench-Evaluation
 ```
 
----
-
-
-### Set Up Environment
-
-Install dependencies:
+### Install Dependencies
 
 ```bash
+# Install Python dependencies
 pip install -r requirements.txt
 pip install python-dotenv datasets groq openai requests
+
+# Install SWE-Bench CLI
+pip install sb-cli
 ```
 
-### Configure API Keys
+## ⚙️ Configuration
 
-Set your keys in a `.env` file or export them in your shell:
+### API Keys Setup
+
+Create a `.env` file in the project root or set environment variables:
 
 ```bash
+# .env file
+GROQ_API_KEY=your_groq_api_key_here
+SONNET_API_KEY=your_openrouter_api_key_here
+
+# Or export in shell
 export GROQ_API_KEY="your_groq_api_key_here"
 export SONNET_API_KEY="your_openrouter_api_key_here"
 ```
 
-### Dataset
+### SWE-Bench CLI Authentication
 
-The evaluation script uses the `princeton-nlp/SWE-bench_Lite` dataset via Hugging Face:
-
-```python
-from datasets import load_dataset
-dataset = load_dataset("princeton-nlp/SWE-bench_Lite", split="test")
-```
-
----
-
-
-## 📂 Project Structure
-
-- `groq_ping.py` — Test connectivity/authentication with Groq API.
-- `sonnet_ping.py` — Test connectivity/authentication with Sonnet API (via OpenRouter).
-- `llama_swe_bench_test.py` — Evaluate 5 random Python instances using Groq’s Llama 3.3 70B Versatile model. Results in `swe_bench_groq_llama_evaluation.json`.
-- `sonnet_swe_bench_test.py` — Evaluate 5 random Python instances using Anthropic Claude 3.5 Sonnet via OpenRouter. Results in `swe_bench_sonnet_evaluation.json`.
-- `test_instance_selection.py`, `test_problem_statement.py` — Utility and test scripts.
-- `SWE-bench/` — Upstream SWE-bench codebase and documentation.
-- ``
----
-
-
-## ⚙️ Workflow
-
-1. **Analyze instance:** Select a random Python bug and extract target files.
-2. **Prompt the LLM:** Pass problem statement, failing tests, and file context to the model.
-3. **Validate format:** Ensure generated patch uses correct unified diff format and targets correct files.
-4. **Evaluate correctness:** Compare generated patch against ground truth and score the result.
-5. **Store results:** Save all metadata and evaluation outcomes to JSON.
-
-
----
-
-
-## 📈 Supported Models
-
-- **Groq:** llama-3.3-70b-versatile
-- **OpenRouter:** anthropic/claude-3.5-sonnet
-
----
-
-
-## ✅ Example Run
-
-**Groq (Llama 3.3 70B):**
+Before using the SWE-Bench CLI, you need to authenticate:
 
 ```bash
-python llama_swe_bench_test.py
+# Generate API key
+sb-cli gen-api-key your.email@example.com
+
+# Set environment variable
+export SWEBENCH_API_KEY=your_api_key
+
+# Verify with the code sent to your email
+sb-cli verify-api-key YOUR_VERIFICATION_CODE
+```
+
+## 🎯 Usage
+
+### Quick Start
+
+Test API connectivity:
+```bash
+# Test Groq API
+python groq_ping.py
+
+# Test Sonnet API
+python sonnet_ping.py
+```
+
+### Run Evaluations
+
+**Evaluate with Groq Llama 3.3 70B:**
+```bash
+python swe_bench_cli_llama.py
 # Output: swe_bench_groq_llama_evaluation_YYYYMMDD_HHMM.json
 ```
 
-**Sonnet (Claude 3.5 via OpenRouter):**
-
+**Evaluate with Claude 3.5 Sonnet:**
 ```bash
-python sonnet_swe_bench_test.py
+python swe_bench_cli_sonnet.py
 # Output: swe_bench_sonnet_evaluation_YYYYMMDD_HHMM.json
 ```
 
----
+### Submit to SWE-Bench
 
----
+After generating predictions, submit them to the official SWE-Bench evaluation:
 
-What is SWE-Bench CLI?
-SWE-Bench CLI is a command-line tool for interacting with the SWE-bench API that allows you to submit predictions, manage runs, and retrieve evaluation reports GitHubSWE-bench. It's designed to evaluate AI systems on real GitHub issues from popular Python repositories.
-
-Installation
-pip install sb-cli
-Authentication
-Before using the CLI, you'll need to get an API key:
-
-Generate an API key:
-sb-cli gen-api-key your.email@example.com
-Set your API key as an environment variable - and store it somewhere safe!
-export SWEBENCH_API_KEY=your_api_key
-# or add export SWEBENCH_API_KEY=your_api_key to your .*rc file
-You'll receive an email with a verification code. Verify your API key:
-sb-cli verify-api-key YOUR_VERIFICATION_CODE
-
-Usage
-Submit Predictions
-Submit your model's predictions to SWE-bench:
-
-sb-cli submit swe-bench-m test \
+```bash
+# Submit predictions
+sb-cli submit swe-bench_lite dev \
     --predictions_path predictions.json \
-    --run_id my_run_id
+    --run_id your_unique_run_id \
+    --gen_report 1
 
+# Get evaluation report
+sb-cli get-report your_unique_run_id
+```
 
-for further details read this file https://github.com/SWE-bench/sb-cli/blob/main/README.md#installation
+## 📂 Project Structure
 
-I adapted the pipeline to use the standard SWE-Bench evaluation framework (sb-cli), which:
-	•	Applies patches in the official benchmark setup (repo checkout, test execution).
-	•	Produces standardised pass/fail outcomes comparable to published results.
-	•	Ensures methodological rigor beyond my current LLM-based evaluation.
+```
+SWE-Bench-Evaluation/
+├── README.md
+├── requirements.txt
+├── .env.example
+├── groq_ping.py                    # Test Groq API connectivity
+├── sonnet_ping.py                  # Test Sonnet API connectivity
+├── llama_swe_bench_test.py        # Groq Llama evaluation with custom python script
+├── sonnet_swe_bench_test.py       # Claude Sonnet evaluation with custom python script
+├── swe_bench_cli_llama.py         # Evaluate Groq Llama via official SWE-Bench CLI  
+├── swe_bench_cli_sonnet.py        # Evaluate Claude Sonnet via official SWE-Bench CLI 
+├── test_instance_selection.py     # Utility for instance selection
+├── test_problem_statement.py      # Test problem statement extraction
+├── SWE-bench/                     # Upstream SWE-bench documentation
+└── results/                       # Generated evaluation results
+    ├── swe_bench_groq_llama_evaluation_*.json
+    └── swe_bench_sonnet_evaluation_*.json
+```
 
+## 🤖 Supported Models
 
-🔄 Workflow Overview
+| Provider | Model | API Endpoint |
+|----------|-------|--------------|
+| **Groq** | llama-3.3-70b-versatile | Groq API |
+| **OpenRouter** | anthropic/claude-3.5-sonnet | OpenRouter API |
 
-This project integrates Claude Sonnet (via OpenRouter API) with the official SWE-Bench evaluation framework (sb-cli). The workflow ensures patches are generated automatically by the model and evaluated rigorously with standardized SWE-Bench benchmarks.
+## 🔄 Workflow
 
-1. Dataset Loading
-	•	Load SWE-Bench Lite test instances (princeton-nlp/SWE-bench_Lite) using HuggingFace Datasets.
-	•	Filter/select instances based on difficulty or problem length.
+The evaluation pipeline follows these steps:
 
-2. Patch Generation (Model Inference)
-	•	For each selected instance:
-	•	Extract the problem statement and expected target files.
-	•	Send a structured prompt to Claude Sonnet via the OpenRouter API.
-	•	Receive a unified diff patch as model output.
+### 1. Dataset Loading
+- Load SWE-Bench Lite test instances from HuggingFace
+- Filter instances based on criteria (language, difficulty)
 
-3. Results Formatting
-	•	Store results (problem, patch, metadata) in JSON format.
-	•	Convert them into the official SWE-Bench predictions format expected by sb-cli.
+### 2. Instance Analysis
+- Extract problem statement and failing tests
+- Identify target files that need modification
+- Prepare context for the LLM
 
-4. Official Evaluation (sb-cli)
-	•	Run the SWE-Bench CLI to:
-	•	Checkout the repo state for each instance.
-	•	Apply the model-generated patch.
-	•	Run the test suite to check correctness.
-	•	Generate pass/fail reports using the standard evaluation setup.
+### 3. Patch Generation
+- Send structured prompt to the LLM
+- Request unified diff format patches
+- Validate patch format and target files
 
-5. Submission & Reporting
-	•	Submit predictions with:
+### 4. Result Processing
+- Store generated patches with metadata
+- Format results for SWE-Bench CLI submission
+- Save evaluation outcomes to JSON
 
-    sb-cli submit swe-bench_lite dev --predictions_path predictions.json --run_id <your_run_id>
+### 5. Official Evaluation
+- Submit to SWE-Bench using sb-cli
+- Apply patches in isolated environments
+- Run test suites to determine correctness
+- Generate standardized reports
 
+## 🛠️ SWE-Bench CLI Integration
 
-# Submit predictions to SWE-Bench
+This project leverages the official SWE-Bench CLI for rigorous evaluation:
+
+### Key Commands
+
+```bash
+# Submit predictions
 sb-cli submit <dataset> <split> \
-  --predictions_path <path_to_predictions.json> \
-  --run_id <unique_run_id> \
-  --gen_report 1
+    --predictions_path <path_to_predictions.json> \
+    --run_id <unique_run_id> \
+    --gen_report 1
 
-  Parameters
-	•	<dataset> → swe-bench or swe-bench_lite
-	•	<split> → train, dev, or test
-	•	<path_to_predictions.json> → path to your generated predictions file
-	•	<unique_run_id> → any unique name to identify this run (e.g., sonnet_20250918)
+# Parameters:
+# <dataset>: swe-bench or swe-bench_lite
+# <split>: train, dev, or test
+# <path_to_predictions.json>: path to your predictions file
+# <unique_run_id>: unique identifier for the run
+```
+
+### Benefits of CLI Integration
+
+- **Standardized Environment:** Tests run in the original repository setup
+- **Automated Validation:** Patches are applied and tested automatically  
+- **Comparable Results:** Results directly comparable to published benchmarks
+- **Detailed Reports:** Comprehensive evaluation metrics and error analysis
+
+## 📊 Examples
+
+### Sample Evaluation Output
+
+```json
+{
+  "instance_id": "django__django-12345",
+  "model_name": "claude-3.5-sonnet",
+  "problem_statement": "Fix database connection pooling issue...",
+  "generated_patch": "--- a/django/db/backends/base.py\n+++ b/django/db/backends/base.py\n...",
+  "evaluation": {
+    "patch_applied": true,
+    "tests_passed": true,
+    "score": 1.0
+  },
+  "metadata": {
+    "timestamp": "2025-09-18T10:30:00Z",
+    "processing_time": 15.2,
+    "target_files": ["django/db/backends/base.py"]
+  }
+}
+```
+
+### Sample SWE-Bench Submission Format
+
+```json
+[
+  {
+    "instance_id": "django__django-12345",
+    "model_patch": "--- a/django/db/backends/base.py\n+++ b/django/db/backends/base.py\n@@ -100,7 +100,7 @@\n-    old_code\n+    new_code\n",
+    "model_name_or_path": "claude-3.5-sonnet"
+  }
+]
+```
+
+## 🤝 Contributing
+
+We welcome contributions! Please:
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 🔗 Links
+
+- [SWE-Bench Official Repository](https://github.com/princeton-nlp/SWE-bench)
+- [SWE-Bench CLI Documentation](https://github.com/SWE-bench/sb-cli)
+- [SWE-Bench Lite Dataset](https://huggingface.co/datasets/princeton-nlp/SWE-bench_Lite)
+- [Groq API Documentation](https://console.groq.com/docs)
+- [OpenRouter API Documentation](https://openrouter.ai/docs)
+
