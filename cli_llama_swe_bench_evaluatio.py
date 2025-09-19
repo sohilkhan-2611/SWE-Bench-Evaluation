@@ -94,48 +94,68 @@ IMPORTANT: Your patch should ONLY modify these files. Do not create new files or
 """
     
     # Enhanced prompt with target file context
-    prompt = f"""You are an expert software engineer specializing in debugging and patch generation. Your task is to create a minimal, precise patch to fix a specific GitHub issue.
+    prompt = f"""You are an expert software engineer with deep expertise in debugging, code analysis, and patch generation. Your task is to create a precise, minimal patch that fixes the reported GitHub issue.
 
-## REPOSITORY CONTEXT
+    ## REPOSITORY CONTEXT
+    Repository: {instance['repo']}
+    Instance ID: {instance.get('instance_id', 'N/A')}
 
-Repository: {instance['repo']}
-Instance ID: {instance.get('instance_id', 'N/A')}
-{file_context}
+    ## CODEBASE FILES (Key Context)
+    {file_context}
 
-## PROBLEM TO SOLVE
-{instance['problem_statement']}
+    ## ISSUE TO RESOLVE
+    {instance['problem_statement']}
 
-## FAILING TESTS (if available)
-{', '.join(instance.get('FAIL_TO_PASS', [])) if instance.get('FAIL_TO_PASS') else 'No specific failing tests provided'}
+    ## TEST REQUIREMENTS
+    Failing tests that must pass after your fix: {', '.join(instance.get('FAIL_TO_PASS', [])) if instance.get('FAIL_TO_PASS') else 'Tests not specified - ensure no regressions'}
+    Tests that must continue passing: {', '.join(instance.get('PASS_TO_PASS', [])) if instance.get('PASS_TO_PASS') else 'All existing functionality must be preserved'}
 
-## YOUR TASK
-1. **Analyze** the problem statement to understand the root cause
-2. **Focus** on the target files listed above 
-3. **Generate** a minimal unified diff patch that fixes ONLY the reported issue
-4. **Ensure** your patch addresses the core problem without breaking existing functionality
+    ## ANALYSIS FRAMEWORK
+    Before generating the patch, consider:
 
-## CRITICAL REQUIREMENTS
-- Output ONLY a valid unified diff patch (no explanations, no markdown code blocks)
-- Start with "--- a/" and "+++ b/" format for each file
-- Use proper file paths matching the target files above
-- Make minimal changes - fix only what's broken
-- Ensure the patch can be directly applied with `git apply`
-- Do not include any explanatory text before or after the patch
-- Modify only the relevant code; do not touch unrelated files or logic.
-- Follow the existing project's style and conventions.
-- Keep changes as small as possible while still being correct.
-- Ensure that all tests pass with your patch.
+    1. **Root Cause Analysis**: What is the underlying technical issue?
+    - Is it a logic error, missing functionality, incorrect condition, or edge case?
+    - Are there side effects or cascading behaviors involved?
 
-## EXPECTED PATCH FORMAT
---- a/path/to/file.py
-+++ b/path/to/file.py
-@@ -start_line,line_count +start_line,line_count @@
- context line
--line to remove
-+line to add
- context line
+    2. **Code Flow Understanding**: 
+    - Trace the execution path that leads to the buggy behavior
+    - Identify all code locations that contribute to the issue
+    - Look for shared state, callbacks, event propagation, or inheritance patterns
 
-Now generate the patch:"""
+    3. **Impact Assessment**:
+    - Which components/modules are affected?
+    - What are the potential side effects of the fix?
+    - Are there similar patterns elsewhere that might need consideration?
+
+    4. **Fix Strategy**:
+    - What is the minimal change that addresses the root cause?
+    - Should you modify conditions, add missing logic, restructure control flow, or fix data handling?
+    - How can you preserve all existing correct behavior?
+
+    ## PATCH GENERATION REQUIREMENTS
+
+    **CRITICAL**: Output ONLY a valid unified diff patch. No explanations, no markdown blocks, no additional text.
+
+    **Format Requirements**:
+    - Use standard unified diff format: `--- a/path/to/file.py` and `+++ b/path/to/file.py`
+    - Include proper line context (@@ -start,count +start,count @@)
+    - Show enough context lines for clarity (typically 3 lines before/after changes)
+    - Use exact file paths as they appear in the repository
+
+    **Content Requirements**:
+    - Make the smallest possible change that completely fixes the issue
+    - Preserve all existing functionality and behavior
+    - Follow the project's existing code style and conventions
+    - Ensure the fix handles edge cases and error conditions appropriately
+    - If multiple files need changes, include all modifications in a single patch
+
+    **Quality Standards**:
+    - The patch must apply cleanly with `git apply`
+    - All failing tests specified above must pass after applying the patch
+    - No existing tests should break (no regressions)
+    - The fix should be robust and not introduce new bugs
+
+    Generate the unified diff patch:"""
     
     print("="*80)
     print("TESTING GROQ ON SELECTED INSTANCE")

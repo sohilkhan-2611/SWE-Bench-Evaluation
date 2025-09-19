@@ -1,0 +1,42 @@
+{
+  "django__django-16139": {
+    "model_patch": "--- a/django/contrib/auth/forms.py\n+++ b/django/contrib/auth/forms.py\n@@ -144,7 +144,7 @@ class UserChangeForm(forms.ModelForm):\n         super().__init__(*args, **kwargs)\n         password = self.fields.get(\"password\")\n         if password:\n-            password.help_text = password.help_text.format(\"../password/\")\n+            password.help_text = password.help_text.format(f\"../../{self.instance.pk}/password/\")\n         user_permissions = self.fields.get(\"user_permissions\")\n         if user_permissions:\n             user_permissions.queryset = user_permissions.queryset.select_related(",
+    "model_name_or_path": "sonnet"
+  },
+  "matplotlib__matplotlib-25332": {
+    "model_patch": "--- a/lib/matplotlib/cbook.py\n+++ b/lib/matplotlib/cbook.py\n@@ -1,3 +1,4 @@\n+import weakref\n \"\"\"\n A collection of utility functions and classes.  Originally, many\n (but not all) were from the Python Cookbook -- hence the name cbook.\n@@ -1226,6 +1227,13 @@ def _setattr_cm(self):\n         self._cm_set = True\n         yield\n         self._cm_set = False\n+        \n+def _weak_to_ref(obj):\n+    \"\"\"Convert a weak reference to its object or return the object itself.\"\"\"\n+    if isinstance(obj, weakref.ReferenceType):\n+        return obj()\n+    return obj\n+\n \n class _AxesStack:\n     \"\"\"",
+    "model_name_or_path": "sonnet"
+  },
+  "django__django-14915": {
+    "model_patch": "--- a/django/forms/models.py\n+++ b/django/forms/models.py\n@@ -1216,6 +1216,12 @@ class ModelChoiceIteratorValue:\n     def __str__(self):\n         return str(self.value)\n \n+    def __hash__(self):\n+        return hash(self.value)\n+\n+    def __eq__(self, other):\n+        return str(self) == str(other)\n+\n \n class ModelChoiceIterator:\n     def __init__(self, field):",
+    "model_name_or_path": "sonnet"
+  },
+  "django__django-13230": {
+    "model_patch": "--- a/django/contrib/syndication/views.py\n+++ b/django/contrib/syndication/views.py\n@@ -165,7 +165,7 @@ class Feed:\n         \"\"\"\n         return None\n \n-    def add_item_elements(self, handler, item):\n+    def add_item_elements(self, handler, item, comments=None):\n         \"\"\"\n         Add elements on each item (item/entry) element.\n         \"\"\"\n@@ -174,6 +174,8 @@ class Feed:\n             handler.addQuickElement(\"title\", item['title'])\n         if item.get('link') is not None:\n             handler.addQuickElement(\"link\", item['link'])\n+        if item.get('comments') is not None:\n+            handler.addQuickElement(\"comments\", item['comments'])\n \n         if item.get('description') is not None:\n             handler.addQuickElement(\"description\", item['description'])\n@@ -235,7 +237,7 @@ class Feed:\n             handler.addQuickElement(\"lastBuildDate\", rfc2822_date(self.latest_post_date()))\n             self.add_root_elements(handler)\n             for item in self.items():\n-                handler.startElement(\"item\", {})\n+                handler.startElement(\"item\", self.item_attributes(item))\n                 self.add_item_elements(handler, item)\n                 handler.endElement(\"item\")\n             handler.endElement(\"channel\")\n@@ -243,6 +245,9 @@ class Feed:\n             handler.endElement(\"rss\")\n         return handler.getvalue()\n \n+    def item_attributes(self, item):\n+        return {}\n+\n     def write(self, outfile, encoding):\n         \"\"\"\n         Output is unicode, must be encoded before writing.\n@@ -286,6 +291,7 @@ class Feed:\n             'description': self.item_description(item),\n             'guid': self.item_guid(item),\n             'pubdate': self.item_pubdate(item),\n+            'comments': self.item_comments(item),\n         }\n         enclosure = self.item_enclosure(item)\n         if enclosure:\n@@ -365,6 +371,13 @@ class Feed:\n         \"\"\"\n         return None\n \n+    def item_comments(self, item):\n+        \"\"\"\n+        Return the item's comments URL as a string.\n+        \"\"\"\n+        return None\n+\n+\n     # Utility methods\n \n     def get_feed(self, obj):",
+    "model_name_or_path": "sonnet"
+  },
+  "sphinx-doc__sphinx-8506": {
+    "model_patch": "--- a/sphinx/domains/std.py\n+++ b/sphinx/domains/std.py\n@@ -1012,7 +1012,7 @@ class OptionParser(optparse.OptionParser):\n \n     def _check_command_options(self, option_desc: str) -> None:\n         \"\"\"Verify all options are known.\"\"\"\n-        if not re.match(r'^([-+/]?\\w+\\s*)(.*)', option_desc):\n+        if not re.match(r'^([-+/\\[]?\\w+\\s*)(.*)', option_desc):\n             msg = __('Malformed option description %r, '\n                     'should look like \"opt\", \"-opt args\", \"--opt args\", '\n                     '\"/opt args\" or \"+opt args\"')",
+    "model_name_or_path": "sonnet"
+  },
+  "sympy__sympy-19007": {
+    "model_patch": "--- a/sympy/matrices/expressions/blockmatrix.py\n+++ b/sympy/matrices/expressions/blockmatrix.py\n@@ -166,7 +166,14 @@ class BlockMatrix(MatrixExpr):\n         if not (isinstance(i, (int, Integer)) and isinstance(j, (int, Integer))):\n             return None\n \n-        return self.blocks[i, j]\n+        # Find which block contains the requested index\n+        rowblocks = [block.rows for block in self.rowblocklist()]\n+        colblocks = [block.cols for block in self.colblocklist()]\n+        row_block = sum(1 for s in accumulate(rowblocks) if i < s)\n+        col_block = sum(1 for s in accumulate(colblocks) if j < s)\n+        if row_block >= len(rowblocks) or col_block >= len(colblocks):\n+            return None\n+        return self.blocks[row_block, col_block]\n \n     @property\n     def blocks(self):",
+    "model_name_or_path": "sonnet"
+  },
+  "sympy__sympy-12454": {
+    "model_patch": "--- a/sympy/matrices/matrices.py\n+++ b/sympy/matrices/matrices.py\n@@ -1110,7 +1110,7 @@ class MatrixRequired(object):\n     @property\n     def is_upper(self):\n         return all(self[i, j].is_zero\n-                   for i in range(1, self.rows)\n+                   for i in range(1, self.rows) if i < self.cols\n                    for j in range(i))\n \n     @property",
+    "model_name_or_path": "sonnet"
+  },
+  "django__django-13028": {
+    "model_patch": "--- a/django/db/models/sql/query.py\n+++ b/django/db/models/sql/query.py\n@@ -1128,7 +1128,7 @@ class Query:\n     def check_filterable(self, value):\n         \"\"\"Raise NotSupportedError for non-filterable values.\"\"\"\n         if hasattr(value, \"filterable\") and not value.filterable:\n-            raise NotSupportedError(\n-                \"%s is disallowed in the filter clause.\" % value.__class__.__name__\n-            )\n+            if not isinstance(value, type):\n+                raise NotSupportedError(\n+                    \"%s is disallowed in the filter clause.\" % value.__class__.__name__\n+                )",
+    "model_name_or_path": "sonnet"
+  },
+  "pylint-dev__pylint-7228": {
+    "model_patch": "--- a/pylint/config/argument.py\n+++ b/pylint/config/argument.py\n@@ -1,4 +1,4 @@\n-# Licensed under the GPL: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html\n+# Licensed under the GPL: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html \n # For details: https://github.com/PyCQA/pylint/blob/main/LICENSE\n # Copyright (c) https://github.com/PyCQA/pylint/blob/main/CONTRIBUTORS.txt\n \n@@ -14,7 +14,7 @@ def _validate_regexp(value: str) -> Pattern[str]:\n     \"\"\"Check if value is a valid regular expression.\"\"\"\n     try:\n         # Use bytes to avoid any implicit conversion\n-        return re.compile(value)\n+        return re.compile(value, re.UNICODE)\n     except re.error as exc:\n         msg = f\"Error in regex {value!r}: {exc}\"\n         raise ArgumentTypeError(msg) from exc",
+    "model_name_or_path": "sonnet"
+  },
+  "django__django-11019": {
+    "model_patch": "--- a/django/forms/widgets.py\n+++ b/django/forms/widgets.py\n@@ -133,7 +133,7 @@ class Media:\n                 if item in seen:\n                     continue\n                 seen.add(item)\n-                if item in other_seen:\n+                if item in other_seen and item not in result:\n                     result.append(item)\n                     other_seen.remove(item)\n                 else:",
+    "model_name_or_path": "sonnet"
+  }
+}
