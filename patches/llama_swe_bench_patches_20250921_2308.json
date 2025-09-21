@@ -1,0 +1,87 @@
+{
+  "metadata": {
+    "model_name": "llama-3.3-70b-versatile",
+    "provider": "groq",
+    "evaluation_date": "2025-09-21T23:08:46.591892",
+    "dataset": "princeton-nlp/SWE-bench_Lite",
+    "total_instances_tested": 5,
+    "evaluation_method": "SWE-Bench CLI evaluation",
+    "evaluation_parameters": {
+      "max_tokens": 2000,
+      "temperature": 0.1,
+      "max_patch_length_filter": 200,
+      "max_problem_length_filter": 500
+    }
+  },
+  "performance_summary": {
+    "total_patches_generated": 5,
+    "total_tokens_used": 23053
+  },
+  "detailed_results": [
+    {
+      "instance_id": "sphinx-doc__sphinx-7975",
+      "repository": "sphinx-doc/sphinx",
+      "target_files": [
+        "sphinx/environment/adapters/indexentries.py"
+      ],
+      "problem_statement": "Two sections called Symbols in index\nWhen using index entries with the following leading characters: _@_, _\u00a3_, and _\u2190_ I get two sections called _Symbols_ in the HTML output, the first containing all _@_ entries before \u201dnormal\u201d words and the second containing _\u00a3_ and _\u2190_ entries after the \u201dnormal\u201d words.  Both have the same anchor in HTML so the links at the top of the index page contain two _Symbols_ links, one before the letters and one after, but both lead to the first section.\n\n",
+      "expected_patch": "diff --git a/sphinx/environment/adapters/indexentries.py b/sphinx/environment/adapters/indexentries.py\n--- a/sphinx/environment/adapters/indexentries.py\n+++ b/sphinx/environment/adapters/indexentries.py\n@@ -98,9 +98,8 @@ def keyfunc0(entry: Tuple[str, str]) -> Tuple[bool, str]:\n             for subentry in indexentry[1].values():\n                 subentry[0].sort(key=keyfunc0)  # type: ignore\n \n-        # sort the index entries; put all symbols at the front, even those\n-        # following the letters in ASCII, this is where the chr(127) comes from\n-        def keyfunc(entry: Tuple[str, List]) -> Tuple[str, str]:\n+        # sort the index entries\n+        def keyfunc(entry: Tuple[str, List]) -> Tuple[Tuple[int, str], str]:\n             key, (void, void, category_key) = entry\n             if category_key:\n                 # using specified category key to sort\n@@ -108,11 +107,16 @@ def keyfunc(entry: Tuple[str, List]) -> Tuple[str, str]:\n             lckey = unicodedata.normalize('NFD', key.lower())\n             if lckey.startswith('\\N{RIGHT-TO-LEFT MARK}'):\n                 lckey = lckey[1:]\n+\n             if lckey[0:1].isalpha() or lckey.startswith('_'):\n-                lckey = chr(127) + lckey\n+                # put non-symbol characters at the folloing group (1)\n+                sortkey = (1, lckey)\n+            else:\n+                # put symbols at the front of the index (0)\n+                sortkey = (0, lckey)\n             # ensure a determinstic order *within* letters by also sorting on\n             # the entry itself\n-            return (lckey, entry[0])\n+            return (sortkey, entry[0])\n         newlist = sorted(new.items(), key=keyfunc)\n \n         if group_entries:\n",
+      "groq_generated_patch": "--- a/sphinx/environment/adapters/indexentries.py\n+++ b/sphinx/environment/adapters/indexentries.py\n@@ -144,7 +144,7 @@\n         # non-alphanumeric (except underscores) entries to 'Symbols'\n         if not entry[0].isalnum() and entry[0] != '_':\n             key = '_Symbols'\n-        elif entry[0] == '_':\n+        elif entry[0] == '_' and entry[1:].isalnum():\n             key = '_Symbols'\n         else:\n             key = entry[0].lower()\n         return key",
+      "tokens_used": 1895,
+      "model": "llama-3.3-70b-versatile",
+      "evaluation_timestamp": "2025-09-21T23:08:08.894549"
+    },
+    {
+      "instance_id": "django__django-11797",
+      "repository": "django/django",
+      "target_files": [
+        "django/db/models/lookups.py"
+      ],
+      "problem_statement": "Filtering on query result overrides GROUP BY of internal query\nDescription\n\t\nfrom django.contrib.auth import models\na = models.User.objects.filter(email__isnull=True).values('email').annotate(m=Max('id')).values('m')\nprint(a.query) # good\n# SELECT MAX(\"auth_user\".\"id\") AS \"m\" FROM \"auth_user\" WHERE \"auth_user\".\"email\" IS NULL GROUP BY \"auth_user\".\"email\"\nprint(a[:1].query) # good\n# SELECT MAX(\"auth_user\".\"id\") AS \"m\" FROM \"auth_user\" WHERE \"auth_user\".\"email\" IS NULL GROUP BY \"auth_user\".\"email\" LIMIT 1\nb = models.User.objects.filter(id=a[:1])\nprint(b.query) # GROUP BY U0.\"id\" should be GROUP BY U0.\"email\"\n# SELECT ... FROM \"auth_user\" WHERE \"auth_user\".\"id\" = (SELECT U0.\"id\" FROM \"auth_user\" U0 WHERE U0.\"email\" IS NULL GROUP BY U0.\"id\" LIMIT 1)\n",
+      "expected_patch": "diff --git a/django/db/models/lookups.py b/django/db/models/lookups.py\n--- a/django/db/models/lookups.py\n+++ b/django/db/models/lookups.py\n@@ -262,9 +262,9 @@ def process_rhs(self, compiler, connection):\n         from django.db.models.sql.query import Query\n         if isinstance(self.rhs, Query):\n             if self.rhs.has_limit_one():\n-                # The subquery must select only the pk.\n-                self.rhs.clear_select_clause()\n-                self.rhs.add_fields(['pk'])\n+                if not self.rhs.has_select_fields:\n+                    self.rhs.clear_select_clause()\n+                    self.rhs.add_fields(['pk'])\n             else:\n                 raise ValueError(\n                     'The QuerySet value for an exact lookup must be limited to '\n",
+      "groq_generated_patch": "```diff\n--- a/django/db/models/lookups.py\n+++ b/django/db/models/lookups.py\n@@ -74,6 +74,9 @@\n     def get_rhs_op(self, connection, rhs):\n         return connection.ops.lookup_cast(self.rhs_field.get_db_prep_lookup(self.lookup, rhs, connection))\n\n+    def get_group_by_cols(self, alias, connection):\n+        return [alias + '.' + col for col in self.rhs_field.get_group_by_cols()]\n+\n     def process_rhs(self, compiler, connection):\n         rhs = self.rhs\n         if not self.rhs_field:\n             # Handle the case where the RHS is a raw SQL expression.\n@@ -145,7 +148,7 @@\n         if self.lookup in ('exact', 'iexact', 'contains', 'icontains', 'startswith',\n                            'istartswith', 'endswith', 'iendswith', 'regex', 'iregex'):\n             # For these lookups, we don't want to use the field's db_type to\n-            # determine the type of the RHS, because we're doing pattern matching,\n+            # determine the type of the RHS, because we're doing pattern matching.\n             rhs = self.get_db_prep_lookup(self.lookup, rhs, connection=connection)\n             rhs = connection.ops.lookup_cast(self.rhs_field.get_db_prep_lookup(self.lookup, rhs, connection))\n             params = []\n```",
+      "tokens_used": 4974,
+      "model": "llama-3.3-70b-versatile",
+      "evaluation_timestamp": "2025-09-21T23:08:12.894985"
+    },
+    {
+      "instance_id": "sympy__sympy-13971",
+      "repository": "sympy/sympy",
+      "target_files": [
+        "sympy/printing/latex.py"
+      ],
+      "problem_statement": "Display of SeqFormula()\n```\r\nimport sympy as sp\r\nk, m, n = sp.symbols('k m n', integer=True)\r\nsp.init_printing()\r\n\r\nsp.SeqFormula(n**2, (n,0,sp.oo))\r\n```\r\n\r\nThe Jupyter rendering of this command backslash-escapes the brackets producing:\r\n\r\n`\\left\\[0, 1, 4, 9, \\ldots\\right\\]`\r\n\r\nCopying this output to a markdown cell this does not render properly.  Whereas:\r\n\r\n`[0, 1, 4, 9, \\ldots ]`\r\n\r\ndoes render just fine.  \r\n\r\nSo - sequence output should not backslash-escape square brackets, or, `\\]` should instead render?\n",
+      "expected_patch": "diff --git a/sympy/printing/latex.py b/sympy/printing/latex.py\n--- a/sympy/printing/latex.py\n+++ b/sympy/printing/latex.py\n@@ -1657,9 +1657,9 @@ def _print_SeqFormula(self, s):\n         else:\n             printset = tuple(s)\n \n-        return (r\"\\left\\[\"\n+        return (r\"\\left[\"\n               + r\", \".join(self._print(el) for el in printset)\n-              + r\"\\right\\]\")\n+              + r\"\\right]\")\n \n     _print_SeqPer = _print_SeqFormula\n     _print_SeqAdd = _print_SeqFormula\n",
+      "groq_generated_patch": "--- a/sympy/printing/latex.py\n+++ b/sympy/printing/latex.py\n@@ -1445,7 +1445,7 @@\n         else:\n             return r'\\left[' + ', '.join(map(latex, self.args[0])) + \\\n                 r', \\ldots\\right' + (r'}' if self.args[1].is_finite else r')')\n-        return r'\\left[' + ', '.join(map(latex, self.args[0])) + r', \\ldots\\right]'\n+        return '[' + ', '.join(map(latex, self.args[0])) + r', \\ldots]'",
+      "tokens_used": 5098,
+      "model": "llama-3.3-70b-versatile",
+      "evaluation_timestamp": "2025-09-21T23:08:16.637210"
+    },
+    {
+      "instance_id": "django__django-14787",
+      "repository": "django/django",
+      "target_files": [
+        "django/utils/decorators.py"
+      ],
+      "problem_statement": "method_decorator() should preserve wrapper assignments\nDescription\n\t\nthe function that is passed to the decorator is a partial object and does not have any of the attributes expected from a function i.e. __name__, __module__ etc...\nconsider the following case\ndef logger(func):\n\t@wraps(func)\n\tdef inner(*args, **kwargs):\n\t\ttry:\n\t\t\tresult = func(*args, **kwargs)\n\t\texcept Exception as e:\n\t\t\tresult = str(e)\n\t\tfinally:\n\t\t\tlogger.debug(f\"{func.__name__} called with args: {args} and kwargs: {kwargs} resulting: {result}\")\n\treturn inner\nclass Test:\n\t@method_decorator(logger)\n\tdef hello_world(self):\n\t\treturn \"hello\"\nTest().test_method()\nThis results in the following exception\nAttributeError: 'functools.partial' object has no attribute '__name__'\n",
+      "expected_patch": "diff --git a/django/utils/decorators.py b/django/utils/decorators.py\n--- a/django/utils/decorators.py\n+++ b/django/utils/decorators.py\n@@ -37,7 +37,7 @@ def _wrapper(self, *args, **kwargs):\n         # 'self' argument, but it's a closure over self so it can call\n         # 'func'. Also, wrap method.__get__() in a function because new\n         # attributes can't be set on bound method objects, only on functions.\n-        bound_method = partial(method.__get__(self, type(self)))\n+        bound_method = wraps(method)(partial(method.__get__(self, type(self))))\n         for dec in decorators:\n             bound_method = dec(bound_method)\n         return bound_method(*args, **kwargs)\n",
+      "groq_generated_patch": "--- a/django/utils/decorators.py\n+++ b/django/utils/decorators.py\n@@ -136,7 +136,7 @@\n \n def method_decorator(decorator, name=''):\n-    def deco(obj):\n+    def deco(obj, _wrapper=None):\n         from functools import wraps\n         if _wrapper is None:\n             _wrapper = getattr(obj, name)\n@@ -146,7 +146,7 @@\n         # Issue #13621: forward_original_args=0 is required for Python 2.x to\n         # correctly handle __wrapped__ attribute on the decorated method.\n-        wrapper = decorator(_wrapper)\n+        wrapper = decorator(_wrapper) if _wrapper else decorator\n         wrapper = update_wrapper(wrapper, _wrapper, assigned=WRAPPER_ASSIGNMENTS)\n         setattr(obj, name, wrapper)\n         return obj\n@@ -155,6 +155,10 @@\n \n def classonlymethod(func):\n     \"\"\"Converts a function into a class method.\"\"\"\n+    @wraps(func)\n+    def wrapper(*args, **kwargs):\n+        return func(*args, **kwargs)\n+    wrapper.__name__ = func.__name__\n     return classmethod(wrapper)\n \n # The module-level decorator that allows a decorator to be applied to either\n@@ -173,7 +177,7 @@\n         if isinstance(func, staticmethod):\n             # Leave staticmethod alone; it doesn't have __name__ or __module__.\n             return staticmethod(decorator(func.__func__))\n-        return decorator(func)\n+        return decorator(func) if func else decorator\n     return deco\n```",
+      "tokens_used": 3760,
+      "model": "llama-3.3-70b-versatile",
+      "evaluation_timestamp": "2025-09-21T23:08:21.024981"
+    },
+    {
+      "instance_id": "django__django-15996",
+      "repository": "django/django",
+      "target_files": [
+        "django/db/migrations/serializer.py"
+      ],
+      "problem_statement": "Support for serialization of combination of Enum flags.\nDescription\n\t \n\t\t(last modified by Willem Van Onsem)\n\t \nIf we work with a field:\nregex_flags = models.IntegerField(default=re.UNICODE | re.IGNORECASE)\nThis is turned into a migration with:\ndefault=re.RegexFlag[None]\nThis is due to the fact that the EnumSerializer aims to work with the .name of the item, but if there is no single item for the given value, then there is no such name.\nIn that case, we can use enum._decompose to obtain a list of names, and create an expression to create the enum value by \"ORing\" the items together.\n",
+      "expected_patch": "diff --git a/django/db/migrations/serializer.py b/django/db/migrations/serializer.py\n--- a/django/db/migrations/serializer.py\n+++ b/django/db/migrations/serializer.py\n@@ -16,7 +16,7 @@\n from django.db.migrations.operations.base import Operation\n from django.db.migrations.utils import COMPILED_REGEX_TYPE, RegexObject\n from django.utils.functional import LazyObject, Promise\n-from django.utils.version import get_docs_version\n+from django.utils.version import PY311, get_docs_version\n \n \n class BaseSerializer:\n@@ -125,8 +125,21 @@ class EnumSerializer(BaseSerializer):\n     def serialize(self):\n         enum_class = self.value.__class__\n         module = enum_class.__module__\n+        if issubclass(enum_class, enum.Flag):\n+            if PY311:\n+                members = list(self.value)\n+            else:\n+                members, _ = enum._decompose(enum_class, self.value)\n+                members = reversed(members)\n+        else:\n+            members = (self.value,)\n         return (\n-            \"%s.%s[%r]\" % (module, enum_class.__qualname__, self.value.name),\n+            \" | \".join(\n+                [\n+                    f\"{module}.{enum_class.__qualname__}[{item.name!r}]\"\n+                    for item in members\n+                ]\n+            ),\n             {\"import %s\" % module},\n         )\n \n",
+      "groq_generated_patch": "```diff\n--- a/django/db/migrations/serializer.py\n+++ b/django/db/migrations/serializer.py\n@@ -155,6 +155,13 @@\n             value = self.serialize_enum_value(value, enum_type)\n         elif isinstance(value, enum.Enum):\n             value = self.serialize_enum_value(value, type(value))\n+        elif isinstance(value, int) and issubclass(enum_type, enum.Flag):\n+            # Decompose the flag value into individual flag names\n+            flags = [flag for flag in enum_type if flag.value & value]\n+            if flags:\n+                # Serialize the flag names as a bitwise OR expression\n+                value = f\"({') | ('.join(f'{enum_type.__name__}.{flag.name}' for flag in flags)})\"\n         else:\n             raise ValueError(\n                 f\"Cannot serialize {value!r} for {enum_type.__name__!r}\"\n             )\n```",
+      "tokens_used": 7326,
+      "model": "llama-3.3-70b-versatile",
+      "evaluation_timestamp": "2025-09-21T23:08:46.591715"
+    }
+  ]
+}
